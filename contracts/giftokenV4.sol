@@ -2,20 +2,22 @@
 pragma solidity ^0.8.0;
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/utils/SafeERC20.sol";
 
 
 contract Giftokens is Ownable, ERC721URIStorage {
 
-    IERC20 private _tokenInterface;
+    constructor() ERC721("Giftoken NFTs with balances", "GIFTOKENS") {}
 
-    constructor (IERC20 token) ERC721("Giftoken NFTs with balances", "GIFTOKENS") {
-        _tokenInterface = token;
+
+    struct Contribution {
+        address contributor;
+        uint amount;
     }
 
-    struct ERC20contribution {
-        address contributor;
+    struct FullContribution {
         address token;
+        address contributor;
         uint amount;
     }
 
@@ -23,11 +25,9 @@ contract Giftokens is Ownable, ERC721URIStorage {
         address payable beneficiary;
         address org;
         string uri;
-        ERC20contribution[] erc20Contributions;
-        mapping(address => uint) contributorNativeBalances;
-        uint nativeBalance;
-        mapping(address => bool) contributorMapping;
-        address[] contributorArray;
+        mapping(address => Contribution[]) contributionMapping;
+        mapping(address => bool) currencyMapping;
+        address[] currencyArray;
     }
 
     mapping(uint256 => Token) tokens;
@@ -45,43 +45,44 @@ contract Giftokens is Ownable, ERC721URIStorage {
         return true;
     }
 
-    function acceptNativePayment(uint256 _tokenId) public payable returns (bool) {
-        Token storage t = tokens[_tokenId];
-        t.nativeBalance += msg.value;
-        t.contributorNativeBalances[msg.sender] += msg.value;
-        if(t.contributorMapping[msg.sender]==false) {
-            t.contributorMapping[msg.sender] = true;
-            t.contributorArray.push(msg.sender);
-        }
-        return true;    
-    }
 
-    function claimNativeCoins(uint _tokenId) public payable returns (bool) {
+    function acceptPayment(uint _tokenId, IERC20 token, uint _amount) public returns (bool) {
         Token storage t = tokens[_tokenId];
-        //rewrite after adding native contributions to the same array as ERC20
-        require(msg.sender == t.beneficiary, "Only available for beneficiaries");
-        if(t.nativeBalance > 0) {
-            t.beneficiary.transfer(t.nativeBalance);
-            t.nativeBalance = 0;
+        Contribution memory c = Contribution({ contributor: msg.sender, amount: _amount});
+        t.contributionMapping[address(token)].push(c);
+
+        token.transferFrom(msg.sender, address(this), _amount);
+
+        if(t.currencyMapping[address(token)]==false) {
+            t.currencyMapping[address(token)] = true;
+            t.currencyArray.push(address(token));
         }
+
         return true;
     }
 
-    function claimERC20Tokens(uint _tokenId, address _tokenContract) public payable returns (bool) {
+
+    function claimFunds(uint _tokenId, IERC20 token, address _contributor) public payable returns (bool) {
         Token storage t = tokens[_tokenId];
+        require(msg.sender == t.beneficiary, "Only available for beneficiaries");
 
-        // check contributorMapping if true
-        // loop over contributions with _tokenContract 
+        Contribution[] storage contributions = t.contributionMapping[address(token)];
 
-        //use _tokenInterface to transferFrom
+        if (address(token) == 0x0000000000000000000000000000000000000000) {
+            for (uint i=0; i<contributions.length; i++) {
+                if (contributions[i].contributor == _contributor) {
+                    t.beneficiary.transfer(contributions[i].amount);
+                }
+            }
 
+        } else {
 
-
-        //     function doStuff() external {
-        // address from = msg.sender;
-
-        // _token.transferFrom(from, address(this), 1000);
-    // }
+            for (uint i=0; i<contributions.length; i++) {
+                if (contributions[i].contributor == _contributor) {
+                    token.transferFrom(address(this), t.beneficiary, contributions[i].amount);
+                }
+            }
+        }
 
         return true;
     }
@@ -92,23 +93,34 @@ contract Giftokens is Ownable, ERC721URIStorage {
         transferFrom(t.org, t.beneficiary, _tokenId);
         return true;
     }
-    
 
-    function acceptERC20Payment(uint _tokenId, address _erc20token, uint _amount) public returns (bool) {
+
+    function getContributions(uint _tokenId) public view returns (FullContribution[] memory) {
         Token storage t = tokens[_tokenId];
-        ERC20contribution memory c = ERC20contribution({contributor:msg.sender, token: _erc20token, amount: _amount});
-        t.erc20Contributions.push(c);
-        if(t.contributorMapping[msg.sender]==false) {
-            t.contributorMapping[msg.sender] = true;
-            t.contributorArray.push(msg.sender);
+        FullContribution[] memory fca;
+
+        for (uint i=0; i<t.currencyArray.length; i++) {
+
+            address _tokenAddress = t.currencyArray[i];
+            Contribution[] memory _contributions = t.contributionMapping[_tokenAddress];
+
+            for (uint a=0; a<_contributions.length; a++) {
+
+                FullContribution memory fc = FullContribution({
+                    token: 0x0000000000000000000000000000000000000000, 
+                    contributor: 0x0000000000000000000000000000000000000000, 
+                    amount: 0
+                });
+
+                fc.token = _tokenAddress;
+                fc.contributor = _contributions[a].contributor;
+                fc.amount = _contributions[a].amount;
+
+                fc = fca[a*(i+1)];
+            }
         }
-        return true;
-    }
 
-
-    function getERC20contributions(uint _tokenId) public view returns (ERC20contribution[] memory) {
-        Token storage t = tokens[_tokenId];
-        return t.erc20Contributions;
+        return fca;
     }
 
     function getTokenIds() public view returns (uint256[] memory) {
@@ -120,19 +132,5 @@ contract Giftokens is Ownable, ERC721URIStorage {
         return t.beneficiary;
     }
 
-    function getTokenBalance(uint _tokenId) public view returns (uint) {
-        Token storage t = tokens[_tokenId];
-        return t.nativeBalance;
-    }
-
-    function getContributorsNativeBalance(uint256 _tokenId, address contributor) public view returns (uint) {
-        Token storage t = tokens[_tokenId];
-        return t.contributorNativeBalances[contributor];
-    }
-
-    function getAllContributors(uint256 _tokenId) public view  returns (address[] memory) {
-        Token storage t = tokens[_tokenId];
-        return t.contributorArray;
-    }
 
 }
