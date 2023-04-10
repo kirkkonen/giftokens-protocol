@@ -98,8 +98,11 @@ contract Giftokens is Ownable, ERC721URIStorage {
     function getContributions(uint _tokenId) public view returns (FullContribution[] memory) {
         Token storage t = tokens[_tokenId];
         FullContribution[] memory fca;
+        uint externalLoopCount = 0;
 
         for (uint i=0; i<t.currencyArray.length; i++) {
+
+            uint iternalLoopCount = 0;
 
             address _tokenAddress = t.currencyArray[i];
             Contribution[] memory _contributions = t.contributionMapping[_tokenAddress];
@@ -116,8 +119,13 @@ contract Giftokens is Ownable, ERC721URIStorage {
                 fc.contributor = _contributions[a].contributor;
                 fc.amount = _contributions[a].amount;
 
-                fc = fca[a*(i+1)];
+                fc = fca[a+externalLoopCount];
+                iternalLoopCount+=1;
+
             }
+
+            externalLoopCount = iternalLoopCount;
+
         }
 
         return fca;
