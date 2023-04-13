@@ -46,12 +46,18 @@ contract Giftokens is Ownable, ERC721URIStorage {
     }
 
 
-    function acceptPayment(uint _tokenId, IERC20 token, uint _amount) public returns (bool) {
+    function acceptPayment(uint _tokenId, IERC20 token, uint _amount) public payable returns (bool) {
         Token storage t = tokens[_tokenId];
-        Contribution memory c = Contribution({ contributor: msg.sender, amount: _amount});
-        t.contributionMapping[address(token)].push(c);
 
-        token.transferFrom(msg.sender, address(this), _amount);
+        if (address(token) == 0x0000000000000000000000000000000000000000) {
+            Contribution memory c = Contribution({ contributor: msg.sender, amount: msg.value});
+            t.contributionMapping[address(token)].push(c);
+
+        } else {
+            Contribution memory c = Contribution({ contributor: msg.sender, amount: _amount});
+            token.transferFrom(msg.sender, address(this), _amount);
+            t.contributionMapping[address(token)].push(c);
+        }
 
         if(t.currencyMapping[address(token)]==false) {
             t.currencyMapping[address(token)] = true;
@@ -98,11 +104,11 @@ contract Giftokens is Ownable, ERC721URIStorage {
     function getContributions(uint _tokenId) public view returns (FullContribution[] memory) {
         Token storage t = tokens[_tokenId];
         FullContribution[] memory fca;
-        uint externalLoopCount = 0;
+        // uint externalLoopCount = 0;
 
         for (uint i=0; i<t.currencyArray.length; i++) {
 
-            uint iternalLoopCount = 0;
+            //uint iternalLoopCount = 0;
 
             address _tokenAddress = t.currencyArray[i];
             Contribution[] memory _contributions = t.contributionMapping[_tokenAddress];
@@ -119,12 +125,12 @@ contract Giftokens is Ownable, ERC721URIStorage {
                 fc.contributor = _contributions[a].contributor;
                 fc.amount = _contributions[a].amount;
 
-                fc = fca[a+externalLoopCount];
-                iternalLoopCount+=1;
+                fca[_contributions.length*t.currencyArray.length] = fc;
+                // iternalLoopCount+=1;
 
             }
 
-            externalLoopCount = iternalLoopCount;
+            // externalLoopCount = iternalLoopCount;
 
         }
 
