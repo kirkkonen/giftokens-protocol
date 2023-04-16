@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 
 
-contract GiftokensV3 is Ownable, ERC721URIStorage {     
+contract GiftokensV3 is Ownable, ERC721URIStorage {
 
     constructor() ERC721("Giftoken NFTs with balances", "GIFTOKENS") {}
 
@@ -14,7 +14,7 @@ contract GiftokensV3 is Ownable, ERC721URIStorage {
         uint amount;
     }
 
-    struct Token { 
+    struct Token {
         address payable beneficiary;
         address org;
         string uri;
@@ -28,7 +28,7 @@ contract GiftokensV3 is Ownable, ERC721URIStorage {
     mapping(uint256 => Token) tokens;
     uint256[] tokenIds;
 
-    function mint(address payable _beneficiary, uint256 _tokenId, string memory tokenURI) public returns (bool) {        
+    function mint(address payable _beneficiary, uint256 _tokenId, string memory tokenURI) public returns (bool) {
         _mint(msg.sender, _tokenId);
         _setTokenURI(_tokenId, tokenURI);
         Token storage t = tokens[_tokenId];
@@ -48,7 +48,7 @@ contract GiftokensV3 is Ownable, ERC721URIStorage {
             t.contributorMapping[msg.sender] = true;
             t.contributorArray.push(msg.sender);
         }
-        return true;    
+        return true;
     }
 
     function claimFunds(uint256 _tokenId) public payable returns (bool) {
