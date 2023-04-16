@@ -44,14 +44,18 @@ contract Giftokens is Ownable, ERC721URIStorage {
     ) public returns (bool) {
         _mint(msg.sender, _tokenId);
         _setTokenURI(_tokenId, tokenURI);
-        // revert if tokenId already exists
-        Token storage t = tokens[_tokenId];
-        t.uri = tokenURI;
-        t.beneficiary = _beneficiary;
-        t.org = msg.sender;
-        tokenIds.add(_tokenId);
-        _approve(_beneficiary, _tokenId);
-        return true;
+
+        if(tokenIds.contains(_tokenId)) {
+            revert();
+        } else {
+            Token storage t = tokens[_tokenId];
+            t.uri = tokenURI;
+            t.beneficiary = _beneficiary;
+            t.org = msg.sender;
+            tokenIds.add(_tokenId);
+            _approve(_beneficiary, _tokenId);
+            return true;
+        }
     }
 
     function acceptPayment(
@@ -60,9 +64,18 @@ contract Giftokens is Ownable, ERC721URIStorage {
         uint256 _amount
     ) public payable returns (bool) {
         Token storage t = tokens[_tokenId];
-        // guard that token exists and amount > 0
+
+        require(
+            tokenIds.contains(_tokenId), 
+            'token does not exist'
+            );
 
         if (address(token) == address(0)) {
+            require(
+                msg.value>0, 
+                'message value is empty'
+            );
+
             console.log("Accept Payment", msg.value);
             Contribution memory c = Contribution({
                 contributor: msg.sender,
@@ -137,7 +150,6 @@ contract Giftokens is Ownable, ERC721URIStorage {
         uint256 j;
 
         for (uint256 i = 0; i < t.currencySet.length(); i++) {
-            //uint256 iternalLoopCount = 0;
 
             address _tokenAddress = t.currencySet.at(i);
             Contribution[] memory _contributions = t.contributionMapping[
@@ -156,7 +168,7 @@ contract Giftokens is Ownable, ERC721URIStorage {
         return fca;
     }
 
-    function getTokenIds() public view returns (uint256[] memory) {
+    function getTokenIds() public view onlyOwner returns (uint256[] memory) {
         return tokenIds.values();
     }
 
