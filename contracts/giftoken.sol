@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-contract BirthdayNFT is Ownable, ERC721URIStorage {      
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+contract BirthdayNFT is Ownable, ERC721URIStorage {
 
     constructor() ERC721("Birthday NFT with tokens", "BIRTHDAY") {}
 
-    struct Token { 
+    struct Token {
       address payable beneficiary;
       address org;
       uint balance;
@@ -18,7 +18,7 @@ contract BirthdayNFT is Ownable, ERC721URIStorage {
     mapping(uint256 => Token) tokens;
     uint256[] tokenIds;
 
-    function mint(address payable _beneficiary, uint256 _tokenId, string memory tokenURI) public {        
+    function mint(address payable _beneficiary, uint256 _tokenId, string memory tokenURI) public {
         _mint(msg.sender, _tokenId);
         _setTokenURI(_tokenId, tokenURI);
         Token storage t = tokens[_tokenId];

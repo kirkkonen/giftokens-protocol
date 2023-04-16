@@ -1,91 +1,115 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/utils/SafeERC20.sol";
+pragma solidity ^0.8.18;
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
+import 'hardhat/console.sol';
 
 contract Giftokens is Ownable, ERC721URIStorage {
+    using EnumerableSet for EnumerableSet.UintSet;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     constructor() ERC721("Giftoken NFTs with balances", "GIFTOKENS") {}
 
-
     struct Contribution {
         address contributor;
-        uint amount;
+        uint256 amount;
     }
 
     struct FullContribution {
         address token;
         address contributor;
-        uint amount;
+        uint256 amount;
     }
 
-    struct Token { 
+    struct Token {
         address payable beneficiary;
         address org;
         string uri;
         mapping(address => Contribution[]) contributionMapping;
-        mapping(address => bool) currencyMapping;
-        address[] currencyArray;
+        EnumerableSet.AddressSet currencySet;
+        uint256 contributionsCount;
     }
 
     mapping(uint256 => Token) tokens;
-    uint256[] tokenIds;
+    EnumerableSet.UintSet tokenIds;
 
-    function mint(address payable _beneficiary, uint256 _tokenId, string memory tokenURI) public returns (bool) {        
+    function mint(
+        address payable _beneficiary,
+        uint256 _tokenId,
+        string memory tokenURI
+    ) public returns (bool) {
         _mint(msg.sender, _tokenId);
         _setTokenURI(_tokenId, tokenURI);
+        // revert if tokenId already exists
         Token storage t = tokens[_tokenId];
         t.uri = tokenURI;
         t.beneficiary = _beneficiary;
         t.org = msg.sender;
-        tokenIds.push(_tokenId);
+        tokenIds.add(_tokenId);
         _approve(_beneficiary, _tokenId);
         return true;
     }
 
-
-    function acceptPayment(uint _tokenId, IERC20 token, uint _amount) public payable returns (bool) {
+    function acceptPayment(
+        uint256 _tokenId,
+        address token,
+        uint256 _amount
+    ) public payable returns (bool) {
         Token storage t = tokens[_tokenId];
+        // guard that token exists and amount > 0
 
-        if (address(token) == 0x0000000000000000000000000000000000000000) {
-            Contribution memory c = Contribution({ contributor: msg.sender, amount: msg.value});
+        if (address(token) == address(0)) {
+            console.log("Accept Payment", msg.value);
+            Contribution memory c = Contribution({
+                contributor: msg.sender,
+                amount: msg.value
+            });
             t.contributionMapping[address(token)].push(c);
-
         } else {
-            Contribution memory c = Contribution({ contributor: msg.sender, amount: _amount});
-            token.transferFrom(msg.sender, address(this), _amount);
+            Contribution memory c = Contribution({
+                contributor: msg.sender,
+                amount: _amount
+            });
+            // use safeTransferFrom to transfer tokens to this contract, USDT will crash
+            ERC20 erc20 = ERC20(token);
+            erc20.transferFrom(msg.sender, address(this), _amount);
             t.contributionMapping[address(token)].push(c);
         }
 
-        if(t.currencyMapping[address(token)]==false) {
-            t.currencyMapping[address(token)] = true;
-            t.currencyArray.push(address(token));
-        }
-
+        t.currencySet.add(address(token));
+        t.contributionsCount++;
         return true;
     }
 
-
-    function claimFunds(uint _tokenId, IERC20 token, address _contributor) public payable returns (bool) {
+    function claimFunds(
+        uint256 _tokenId,
+        IERC20 token,
+        address _contributor
+    ) public payable returns (bool) {
         Token storage t = tokens[_tokenId];
-        require(msg.sender == t.beneficiary, "Only available for beneficiaries");
+        require(
+            msg.sender == t.beneficiary,
+            "Only available for beneficiaries"
+        );
 
-        Contribution[] storage contributions = t.contributionMapping[address(token)];
+        Contribution[] storage contributions = t.contributionMapping[
+            address(token)
+        ];
 
-        if (address(token) == 0x0000000000000000000000000000000000000000) {
-            for (uint i=0; i<contributions.length; i++) {
+        if (address(token) == address(0)) {
+            for (uint256 i = 0; i < contributions.length; i++) {
                 if (contributions[i].contributor == _contributor) {
                     t.beneficiary.transfer(contributions[i].amount);
                 }
             }
-
         } else {
-
-            for (uint i=0; i<contributions.length; i++) {
+            for (uint256 i = 0; i < contributions.length; i++) {
                 if (contributions[i].contributor == _contributor) {
-                    token.transferFrom(address(this), t.beneficiary, contributions[i].amount);
+                    token.transfer(t.beneficiary, contributions[i].amount);
                 }
             }
         }
@@ -95,56 +119,49 @@ contract Giftokens is Ownable, ERC721URIStorage {
 
     function claimNFT(uint256 _tokenId) public payable returns (bool) {
         Token storage t = tokens[_tokenId];
-        require(msg.sender == t.beneficiary, "Only available for beneficiaries");
+        require(
+            msg.sender == t.beneficiary,
+            "Only available for beneficiaries"
+        );
         transferFrom(t.org, t.beneficiary, _tokenId);
         return true;
     }
 
-
-    function getContributions(uint _tokenId) public view returns (FullContribution[] memory) {
+    function getContributions(
+        uint256 _tokenId
+    ) public view returns (FullContribution[] memory) {
         Token storage t = tokens[_tokenId];
-        FullContribution[] memory fca;
-        // uint externalLoopCount = 0;
+        FullContribution[] memory fca = new FullContribution[](
+            t.contributionsCount
+        );
+        uint256 j;
 
-        for (uint i=0; i<t.currencyArray.length; i++) {
+        for (uint256 i = 0; i < t.currencySet.length(); i++) {
+            //uint256 iternalLoopCount = 0;
 
-            //uint iternalLoopCount = 0;
+            address _tokenAddress = t.currencySet.at(i);
+            Contribution[] memory _contributions = t.contributionMapping[
+                _tokenAddress
+            ];
 
-            address _tokenAddress = t.currencyArray[i];
-            Contribution[] memory _contributions = t.contributionMapping[_tokenAddress];
-
-            for (uint a=0; a<_contributions.length; a++) {
-
-                FullContribution memory fc = FullContribution({
-                    token: 0x0000000000000000000000000000000000000000, 
-                    contributor: 0x0000000000000000000000000000000000000000, 
-                    amount: 0
+            for (uint256 a = 0; a < _contributions.length; a++) {
+                fca[j++] = FullContribution({
+                    token: _tokenAddress,
+                    contributor: _contributions[a].contributor,
+                    amount: _contributions[a].amount
                 });
-
-                fc.token = _tokenAddress;
-                fc.contributor = _contributions[a].contributor;
-                fc.amount = _contributions[a].amount;
-
-                fca[_contributions.length*t.currencyArray.length] = fc;
-                // iternalLoopCount+=1;
-
             }
-
-            // externalLoopCount = iternalLoopCount;
-
         }
 
         return fca;
     }
 
     function getTokenIds() public view returns (uint256[] memory) {
-        return tokenIds;
+        return tokenIds.values();
     }
 
-    function getBeneficiary(uint _tokenId) public view returns (address) {
+    function getBeneficiary(uint256 _tokenId) public view returns (address) {
         Token storage t = tokens[_tokenId];
         return t.beneficiary;
     }
-
-
 }
