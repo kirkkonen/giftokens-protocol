@@ -12,6 +12,11 @@ const config: HardhatUserConfig = {
     //   url: `https://eth-goerli.alchemyapi.io/v2/${alchemyApiKey}`,
     //   accounts: [goerliPrivateKey]
     // }
+    hardhat: {
+      forking: {
+        url: `https://eth-goerli.alchemyapi.io/v2/${alchemyApiKey}`,
+      }
+    }
   }
 };
 

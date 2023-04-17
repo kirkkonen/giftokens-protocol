@@ -3,6 +3,8 @@ import { expect } from "chai";
 import hre from 'hardhat'
 import '@nomiclabs/hardhat-ethers'
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { erc20Abi } from '../abi/erc20Abi.js'
+
 
 import { Contract, Signer } from "ethers";
 
@@ -25,7 +27,8 @@ describe("Giftokens", function () {
   it('mints, accepts payment and returns contribution', async function () {
     const { ben, gifter, org, gifttoken } = await loadFixture(deploy);
     await gifttoken.connect(org).mint(ben.address, 1000, 'http://test.com');
-    await gifttoken.connect(gifter).acceptPayment(1000, hre.ethers.constants.AddressZero, 0, {value: 1000});  
+    await gifttoken.connect(gifter).acceptPayment(1000, hre.ethers.constants.AddressZero, 0, {value: 1000});
+    //await gifttoken.connect(gifter).acceptPayment(1000, hre.ethers.constants.AddressZero, 0, {value: 1000});
     console.log(await gifttoken.getContributions(1000))  
   })
 
