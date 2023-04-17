@@ -5,12 +5,12 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-
 import 'hardhat/console.sol';
 
 contract Giftokens is Ownable, ERC721URIStorage {
     using EnumerableSet for EnumerableSet.UintSet;
     using EnumerableSet for EnumerableSet.AddressSet;
+    using SafeERC20 for ERC20;
 
     constructor() ERC721("Giftoken NFTs with balances", "GIFTOKENS") {}
 
@@ -87,9 +87,9 @@ contract Giftokens is Ownable, ERC721URIStorage {
                 contributor: msg.sender,
                 amount: _amount
             });
-            // use safeTransferFrom to transfer tokens to this contract, USDT will crash
             ERC20 erc20 = ERC20(token);
-            erc20.transferFrom(msg.sender, address(this), _amount);
+            erc20.safeTransferFrom(msg.sender, address(this), _amount);
+
             t.contributionMapping[address(token)].push(c);
         }
 
