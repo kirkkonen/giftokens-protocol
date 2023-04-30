@@ -3,14 +3,14 @@ import { expect } from "chai";
 import hre from 'hardhat'
 import '@nomiclabs/hardhat-ethers'
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { erc20Abi } from '../abi/erc20Abi.js'
+// import { erc20Abi } from '../abi/erc20Abi.js'
 
 
-import { Contract, Signer } from "ethers";
+// import { Contract, Signer } from "ethers";
 
 describe("Giftokens", function () {
 
-  async function deploy() {
+  async function deployGiftoken() {
     const [owner, ben, org, gifter] = await hre.ethers.getSigners()
     const Giftokens = await hre.ethers.getContractFactory('contracts/giftokenV4.sol:Giftokens')
     const gifttoken = await Giftokens.deploy()
@@ -21,15 +21,74 @@ describe("Giftokens", function () {
     //   params: [sender!.address],
     // })
 
+    console.log(
+      'owner: ', owner.address,
+      'ben: ', ben.address,
+      'org: ', org.address,
+      'gifter: ', gifter.address
+    )
+
     return { ben, org, gifter, gifttoken }
   }
 
+  async function deployErc20() {
+    const [erc20owner] = await hre.ethers.getSigners()
+    const Erc20 = await hre.ethers.getContractFactory('contracts/standardErc20.sol:Erc20')
+    const erc20 = await Erc20.deploy(10000)
+    await erc20.deployed()
+
+    console.log(
+      'erc20: ', erc20.address,
+      'erc20 address: ', erc20.address,
+      'erc20 owner: ', erc20owner.address
+    )
+
+    return { erc20, erc20owner }
+
+  }
+
+
   it('mints, accepts payment and returns contribution', async function () {
-    const { ben, gifter, org, gifttoken } = await loadFixture(deploy);
+    const { ben, gifter, org, gifttoken } = await loadFixture(deployGiftoken);
+    const { erc20, erc20owner } = await loadFixture(deployErc20)
+    
+    // mint NFT
     await gifttoken.connect(org).mint(ben.address, 1000, 'http://test.com');
+    
+    // add native coins
     await gifttoken.connect(gifter).acceptPayment(1000, hre.ethers.constants.AddressZero, 0, {value: 1000});
-    //await gifttoken.connect(gifter).acceptPayment(1000, hre.ethers.constants.AddressZero, 0, {value: 1000});
-    console.log(await gifttoken.getContributions(1000))  
+    
+    // add erc20 coins
+    await erc20.connect(erc20owner).approve(gifttoken.address, 10)
+    await gifttoken.connect(erc20owner).acceptPayment(1000, erc20.address, 10);
+    
+    // show contributions
+    console.log('contributions after 2 coins added', await gifttoken.getContributions(1000));
+    
+    // claim native coins
+
+    await gifttoken.connect(ben).claimFunds(1000, hre.ethers.constants.AddressZero, gifter.address)
+
+    // show contributions
+    console.log('contributions after native claimed', await gifttoken.getContributions(1000));
+
+    // claim erc20 coins
+
+    await gifttoken.connect(ben).claimFunds(1000, erc20.address, erc20owner.address);
+
+    // show contributions
+    console.log('contributions after erc20 claimed', await gifttoken.getContributions(1000));
+
+    //claim nft
+    await gifttoken.connect(ben).claimNFT(1000);
+
+    //nft owner
+    console.log('nft owner: ', await gifttoken.connect(ben).ownerOf(1000));
+
+    //balanceOf erc20
+    console.log('erc20 balance: ', await erc20.connect(gifter).balanceOf(ben.address));
+
+
   })
 
  })
