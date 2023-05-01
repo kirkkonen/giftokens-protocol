@@ -1,5 +1,5 @@
 require('dotenv').config()
-import "@nomicfoundation/hardhat-toolbox"; 
+import "@nomicfoundation/hardhat-toolbox";
 import { HardhatUserConfig } from "hardhat/types";
 
 const alchemyApiKey = process.env.ALCHEMY_API_KEY;
@@ -13,6 +13,7 @@ const config: HardhatUserConfig = {
     //   accounts: [goerliPrivateKey]
     // }
     hardhat: {
+      gas: 'auto',
       forking: {
         url: `https://eth-goerli.alchemyapi.io/v2/${alchemyApiKey}`,
       }
