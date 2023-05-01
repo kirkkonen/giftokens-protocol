@@ -1,5 +1,6 @@
-import { expect } from "chai";
-// import { ethers, network } from "hardhat";
+// import { expect } from "chai";
+
+import { ethers, network } from "hardhat";
 import hre from 'hardhat'
 import '@nomiclabs/hardhat-ethers'
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
@@ -12,7 +13,7 @@ describe("Giftokens", function () {
 
   async function deployGiftoken() {
     const [owner, ben, org, gifter] = await hre.ethers.getSigners()
-    const Giftokens = await hre.ethers.getContractFactory('contracts/giftokenV4.sol:Giftokens')
+    const Giftokens = await hre.ethers.getContractFactory('contracts/giftokenV5.sol:Giftokens')
     const gifttoken = await Giftokens.deploy()
     await gifttoken.deployed()
 
@@ -61,19 +62,32 @@ describe("Giftokens", function () {
     // add erc20 coins
     await erc20.connect(erc20owner).approve(gifttoken.address, 10)
     await gifttoken.connect(erc20owner).acceptPayment(1000, erc20.address, 10);
+
+    const myAddress = '0x90C10F9abb753cA860F3BF3D67C9b8d23deB9044'
+    const uniAddress = '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984'
+
+    await network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [myAddress],
+    });
+
+    const uniContract = await hre.ethers.getContractAt(
+      "Uni",
+      uniAddress
+    );
+
+    await uniContract.connect(myAddress).approve(gifttoken.address, 10)
     
     // show contributions
     console.log('contributions after 2 coins added', await gifttoken.getContributions(1000));
     
     // claim native coins
-
     await gifttoken.connect(ben).claimFunds(1000, hre.ethers.constants.AddressZero, gifter.address)
 
     // show contributions
     console.log('contributions after native claimed', await gifttoken.getContributions(1000));
 
     // claim erc20 coins
-
     await gifttoken.connect(ben).claimFunds(1000, erc20.address, erc20owner.address);
 
     // show contributions
