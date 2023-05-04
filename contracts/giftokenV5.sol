@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import 'hardhat/console.sol';
 
-contract Giftokens is Ownable, ERC721URIStorage {
+contract GiftokensV5 is Ownable, ERC721URIStorage {
     using EnumerableSet for EnumerableSet.UintSet;
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for ERC20;

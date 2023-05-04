@@ -6,7 +6,7 @@ async function main() {
 
   const contractOwner = await ethers.getSigners();
   console.log(`Deploying contract from: ${contractOwner[0].address}`);
-  const Giftokens = await ethers.getContractFactory('GiftokensV3');
+  const Giftokens = await ethers.getContractFactory('GiftokensV5');
   const giftokens = await Giftokens.deploy();
   await giftokens.deployed();
   console.log(`Giftokens deployed to: ${giftokens.address}`)
