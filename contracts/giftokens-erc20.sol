@@ -71,7 +71,9 @@ contract GiftokensERC20 is Context, IERC20, IERC20Metadata, Ownable {
         _minter = minter_;
     }
 
-
+    function setRelayer(address relayer_) public onlyOwner {
+        _relayer = relayer_;
+    }
 
     /**
      * @dev Returns the name of the token.

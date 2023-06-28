@@ -70,6 +70,10 @@ contract GiftokensNFTV7 is Ownable, ERC721URIStorage {
         _giftokenERC20 = GiftokensERC20(token_);
     }
 
+    function setRelayer(address relayer_) public onlyOwner {
+        _relayer = relayer_;
+    }
+
 
     function mintAndAttach(
         address payable _beneficiary,

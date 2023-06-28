@@ -88,6 +88,10 @@ contract GiftokensStaking is Context, Ownable, IERC20, IERC20Metadata {
         _giftokenERC20 = ERC20(token_);
     }
 
+    function setRelayer(address relayer_) public onlyOwner {
+        _relayer = relayer_;
+    }
+
     //backup to set another NFT contract as origin
     function setOriginContract(address contract_) public onlyOwner {
         _originContract = contract_;
